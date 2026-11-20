@@ -4,21 +4,47 @@ const dotenv = require('dotenv');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
-const app = express();
-const jwt = require('jsonwebtoken');
 
-app.use(cors());
+const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
+
 dotenv.config();
+
+const app = express();
+
+const PORT = process.env.PORT || 5000
+
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
+
 app.use(express.json());
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(cookieParser());
 
+app.use('/api/auth', authRoutes);
 
-app.get("/",(req,res)=>{
-    res.json({"message":"response from server 5000"})
+app.get("/", (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "response from server 5000"
+    })
 });
 
-app.listen(process.env.PORT,(req,res)=>{
-    console.log("server is runnning at the port ",process.env.PORT)
-})
+const startServer = async()=>{
+    try{
+        await connectDB();
+
+        app.listen(PORT,()=>{
+            console.log(`Server is running in the port: ${PORT}`);
+            
+        })
+    }catch(error){
+        console.log(`server startup is failed: `, error.message);
+        process.exit(1);
+    }
+}
+
+startServer();
