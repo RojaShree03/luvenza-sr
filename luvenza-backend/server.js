@@ -8,9 +8,6 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 
-
-// const jwt = require('jsonwebtoken');
-
 dotenv.config();
 
 const app = express();

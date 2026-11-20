@@ -37,6 +37,51 @@ const registerValidator = [
         .withMessage('Password must contain at least one special symbol'),
 ]
 
+const loginValidator = [
+    body('email')
+        .trim()
+        .notEmpty()
+        .withMessage('Email is required')
+        .isEmail()
+        .withMessage('Enter valid email address')
+        .normalizeEmail(),
+
+    body('password')
+        .notEmpty()
+        .withMessage('Password is required')
+];
+
+const forgotPasswordValidator = [
+    body('email')
+        .trim()
+        .notEmpty()
+        .withMessage('Email is required')
+        .isEmail()
+        .withMessage('Enter valid email address')
+        .normalizeEmail()
+];
+
+const resetPasswordValidator = [
+    body('token')
+        .trim()
+        .notEmpty()
+        .withMessage('Password reset token is required'),
+
+    body('password')
+        .notEmpty()
+        .withMessage('Password is required')
+        .isLength({ min: 8 })
+        .withMessage('password must be at least 8 characters long')
+        .matches(/[A-Z]/)
+        .withMessage('Password must contain at least one uppercase letter')
+        .matches(/[a-z]/)
+        .withMessage('Password must contain at least one lowercase letter')
+        .matches(/[0-9]/)
+        .withMessage('Password must contain at least one number')
+        .matches(/[^A-Za-z0-9]/)
+        .withMessage('Password must contain at least one special symbol')
+];
+
 // middleware to check validation errors
 const validateRequest = (req, res, next) => {
     const errors = validationResult(req)
@@ -56,5 +101,8 @@ const validateRequest = (req, res, next) => {
 
 module.exports = {
     registerValidator,
+    loginValidator,
+    forgotPasswordValidator,
+    resetPasswordValidator,
     validateRequest
 };
