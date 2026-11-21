@@ -25,8 +25,29 @@ const userSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        enum:["customer","admin","tailor","deliver_partner"],
-        default:"customer"
+        enum:["customer","admin","tailor","deliver_partner"]
+        // default:"customer"
+    },
+
+    personalDetails: {
+        firstName: String,
+        lastName: String,
+        dateOfBirth: Date,
+        gender: String,
+        profileImage: String
+    },
+
+    address: {
+        street: String,
+        city: String,
+        state: String,
+        country: String,
+        pincode: String
+    },
+
+    profileCompleted: {
+        type: Boolean,
+        default: false
     }
 
 },{timestamps:true});
