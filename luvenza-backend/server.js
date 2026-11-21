@@ -7,6 +7,12 @@ const cookieParser = require('cookie-parser');
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
+const userRoutes = require('./routes/userRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const measurementRoutes = require('./routes/measurementRoutes');
+const customizationRoutes = require('./routes/customizationRoutes');
 
 dotenv.config();
 
@@ -25,6 +31,12 @@ app.use(morgan("dev"));
 app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/measurements', measurementRoutes);
+app.use('/api/customizations', customizationRoutes);
 
 app.get("/", (req, res) => {
     res.status(200).json({
