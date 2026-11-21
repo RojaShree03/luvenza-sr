@@ -25,24 +25,19 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["customer", "admin", "tailor", "deliver_partner"]
-        // default:"customer"
+        enum: ["customer", "admin", "tailor", "deliver_partner"],
+        default: "customer"
     },
-
-    personalDetails: {
-        firstName: String,
-        lastName: String,
-        dateOfBirth: Date,
-        gender: String,
-        profileImage: String
+    resetPasswordOTP: {
+        type: String,
+        default: null
     },
-
-    address: {
-        street: String,
-        city: String,
-        state: String,
-        country: String,
-        pincode: String
+    resetPasswordOTPExpiry: {
+        type: Date,
+        default: null
+    }, resetPasswordOTPAttempts: {
+        type: Number,
+        default: 0
     },
 
     profileCompleted: {
@@ -70,6 +65,9 @@ const userSchema = new mongoose.Schema({
         vehicleType: String,
         vehicleNumber: String,
         licenseNumber: String
+    resetPasswordOTPBlockedUntil: {
+        type: Date,
+        default: null
     }
 
 }, { timestamps: true });
