@@ -14,6 +14,13 @@ const cartRoutes = require('./routes/cartRoutes');
 const measurementRoutes = require('./routes/measurementRoutes');
 const customizationRoutes = require('./routes/customizationRoutes');
 
+const adminCustomerRoutes = require("./routes/adminCustomerRoutes");
+const collectionRoutes = require("./routes/collectionRoutes");
+const designComponentRoutes = require("./routes/designComponentRoutes");
+const templateRoutes = require("./routes/templateRoutes");
+const designerRequestRoutes = require("./routes/designerRequestRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+
 dotenv.config();
 
 const app = express();
@@ -37,6 +44,12 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/customizations', customizationRoutes);
+app.use("/api/admin/customers", adminCustomerRoutes);
+app.use("/api/collections", collectionRoutes);
+app.use("/api/design-components", designComponentRoutes);
+app.use("/api/templates", templateRoutes);
+app.use("/api/designer/requests", designerRequestRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {
     res.status(200).json({

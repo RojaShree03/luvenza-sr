@@ -39,6 +39,32 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+
+    profileCompleted: {
+        type: Boolean,
+        default: false
+    },
+
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+
+    isApproved: {
+        type: Boolean,
+        default: false
+    },
+
+    professionalDetails: {
+        specialization: String,
+        experience: Number,
+        portfolio: [String]
+    },
+
+    deliveryDetails: {
+        vehicleType: String,
+        vehicleNumber: String,
+        licenseNumber: String
     resetPasswordOTPBlockedUntil: {
         type: Date,
         default: null
