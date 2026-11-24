@@ -65,6 +65,7 @@ const userSchema = new mongoose.Schema({
         vehicleType: String,
         vehicleNumber: String,
         licenseNumber: String
+    },
     resetPasswordOTPBlockedUntil: {
         type: Date,
         default: null

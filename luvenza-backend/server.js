@@ -13,6 +13,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const measurementRoutes = require('./routes/measurementRoutes');
 const customizationRoutes = require('./routes/customizationRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const adminCustomerRoutes = require("./routes/adminCustomerRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");
@@ -50,6 +51,7 @@ app.use("/api/design-components", designComponentRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/designer/requests", designerRequestRoutes);
 app.use("/api/admin", adminRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.get("/", (req, res) => {
     res.status(200).json({
