@@ -46,6 +46,12 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
 
+    // Internal idempotency key used to recover interrupted checkout requests.
+    checkoutKey: {
+        type: String,
+        select: false
+    },
+
     items: {
         type: [orderItemSchema],
         required: true,
@@ -82,7 +88,15 @@ const orderSchema = new mongoose.Schema({
         default: 'Pending'
     }
 
-}, { timestamps: true });
+}, { timestamps: true, autoIndex: false });
+
+orderSchema.index(
+    { customerId: 1, checkoutKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { checkoutKey: { $type: 'string' } }
+    }
+);
 
 const Order = mongoose.model('Order', orderSchema);
 
