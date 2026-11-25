@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 const fs = require('fs/promises');
 
-const Customization = require('../models/Customization');
+const Customization = require('../models/customization');
 const TryOn = require('../models/tryOn');
 
 const MAX_GENERATIONS = 3;
@@ -63,7 +63,7 @@ const generateTryOn = async (req, res) => {
         // 4. Verify customization ownership
         const customization = await Customization.findOne({
             _id: customizationId,
-            customerId
+            userId: customerId
         });
 
         if (!customization) {
@@ -196,7 +196,7 @@ const getTryOnHistory = async (req, res) => {
         // 2. Verify customization ownership
         const customization = await Customization.findOne({
             _id: customizationId,
-            customerId
+            userId: customerId
         });
 
         if (!customization) {
@@ -264,7 +264,7 @@ const getRemainingGenerations = async (req, res) => {
         // 2. Verify customization ownership
         const customization = await Customization.findOne({
             _id: customizationId,
-            customerId
+            userId: customerId
         });
 
         if (!customization) {
