@@ -1,10 +1,42 @@
 const mongoose = require('mongoose');
 
+const personalDetailsSchema = new mongoose.Schema({
+    dateOfBirth: {
+        type: Date,
+        validate: {
+            validator: value => !value || value <= new Date(),
+            message: 'Date of birth cannot be in the future'
+        }
+    },
+    gender: {
+        type: String,
+        trim: true,
+        maxlength: 50
+    },
+    alternatePhone: {
+        type: String,
+        trim: true,
+        maxlength: 20
+    }
+}, { _id: false, strict: false });
+
+const addressSchema = new mongoose.Schema({
+    addressLine1: { type: String, trim: true, maxlength: 200 },
+    addressLine2: { type: String, trim: true, maxlength: 200 },
+    landmark: { type: String, trim: true, maxlength: 200 },
+    city: { type: String, trim: true, maxlength: 100 },
+    state: { type: String, trim: true, maxlength: 100 },
+    postalCode: { type: String, trim: true, maxlength: 20 },
+    country: { type: String, trim: true, maxlength: 100 }
+}, { _id: false, strict: false });
+
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, "Name is required"],
-        trim: true
+        trim: true,
+        minlength: [1, 'Name cannot be empty'],
+        maxlength: [100, 'Name cannot exceed 100 characters']
     },
     email: {
         type: String,
@@ -45,6 +77,16 @@ const userSchema = new mongoose.Schema({
         default: false
     },
 
+    personalDetails: {
+        type: personalDetailsSchema,
+        default: () => ({})
+    },
+
+    address: {
+        type: addressSchema,
+        default: () => ({})
+    },
+
     isActive: {
         type: Boolean,
         default: true
@@ -72,6 +114,17 @@ const userSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true });
+
+userSchema.set('toJSON', {
+    transform: (_document, returned) => {
+        delete returned.password;
+        delete returned.resetPasswordOTP;
+        delete returned.resetPasswordOTPExpiry;
+        delete returned.resetPasswordOTPAttempts;
+        delete returned.resetPasswordOTPBlockedUntil;
+        return returned;
+    }
+});
 
 const User = mongoose.model('User', userSchema);
 

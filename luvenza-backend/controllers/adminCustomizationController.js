@@ -3,10 +3,10 @@ const Customization = require("../models/customization");
 exports.getAllCustomizations = async (req, res) => {
     try {
         const customizations = await Customization.find()
-            .populate("userId", "username email")
+            .populate("userId", "name email")
             .populate("productId")
             .populate("measurementId")
-            .populate("assignedTailor", "username phone")
+            .populate("assignedTailor", "name phone")
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -21,10 +21,10 @@ exports.getAllCustomizations = async (req, res) => {
 exports.getCustomizationById = async (req, res) => {
     try {
         const customization = await Customization.findById(req.params.id)
-            .populate("userId", "username email phone")
+            .populate("userId", "name email phone")
             .populate("productId")
             .populate("measurementId")
-            .populate("assignedTailor", "username phone");
+            .populate("assignedTailor", "name phone");
 
         if (!customization) {
             return res.status(404).json({

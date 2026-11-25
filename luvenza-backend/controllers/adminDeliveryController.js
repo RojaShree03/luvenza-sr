@@ -35,7 +35,7 @@ exports.getDeliveryPartnerById = async (req, res) => {
 
 exports.updateDeliveryPartner = async (req, res) => {
     try {
-        const allowed = ["username", "phone", "deliveryDetails"];
+        const allowed = ["name", "phone", "deliveryDetails"];
         const updates = {};
 
         allowed.forEach((field) => {

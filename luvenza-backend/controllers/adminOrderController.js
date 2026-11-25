@@ -5,9 +5,9 @@ const User = require("../models/user");
 exports.getOrders = async (req, res) => {
     try {
         const orders = await Order.find()
-            .populate("customerId", "username email phone")
-            .populate("assignedTailor", "username phone")
-            .populate("assignedDeliveryPartner", "username phone")
+            .populate("customerId", "name email phone")
+            .populate("assignedTailor", "name phone")
+            .populate("assignedDeliveryPartner", "name phone")
             .populate("customizationId")
             .sort({ createdAt: -1 });
 
@@ -23,9 +23,9 @@ exports.getOrders = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
-            .populate("customerId", "username email phone")
-            .populate("assignedTailor", "username phone")
-            .populate("assignedDeliveryPartner", "username phone")
+            .populate("customerId", "name email phone")
+            .populate("assignedTailor", "name phone")
+            .populate("assignedDeliveryPartner", "name phone")
             .populate("customizationId");
 
         if (!order) {

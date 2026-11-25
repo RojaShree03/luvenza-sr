@@ -31,7 +31,7 @@ exports.getTailorById = async (req, res) => {
 
 exports.updateTailor = async (req, res) => {
     try {
-        const allowed = ["username", "phone", "professionalDetails"];
+        const allowed = ["name", "phone", "professionalDetails"];
         const updates = {};
 
         allowed.forEach((field) => {
