@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const { ORDER_STATUSES } = require('../utils/orderStatus');
 
 const orderItemSchema = new mongoose.Schema({
     productId: {
@@ -77,20 +78,7 @@ const orderSchema = new mongoose.Schema({
 
     status: {
         type: String,
-        enum: [
-            'Pending',
-            'Awaiting_Approval',
-            'Approved',
-            'Awaiting_Payment',
-            'Paid',
-            'In_Production',
-            'Quality_Check',
-            'Ready_For_Dispatch',
-            'Shipped',
-            'Out_For_Delivery',
-            'Delivered',
-            'Cancelled'
-        ],
+        enum: ORDER_STATUSES,
         default: 'Pending'
     }
 

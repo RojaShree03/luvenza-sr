@@ -1,6 +1,17 @@
 const Cart = require('../models/cart');
 const Order = require('../models/order');
 const mongoose = require('mongoose');
+const {
+    normalizeOrderStatus,
+    storedStatusValues
+} = require('../utils/orderStatus');
+
+const normalizeOrderForResponse = order => {
+    if (order && normalizeOrderStatus(order.status)) {
+        order.status = normalizeOrderStatus(order.status);
+    }
+    return order;
+};
 
 // POST - Place order
 const placeOrder = async (req, res) => {
@@ -101,6 +112,8 @@ const getMyOrders = async (req, res) => {
             customerId: req.user._id
         }).sort({ createdAt: -1 });
 
+        orders.forEach(normalizeOrderForResponse);
+
         res.status(200).json({
             success: true,
             count: orders.length,
@@ -139,6 +152,7 @@ const getOrderById = async (req, res) => {
             });
         }
 
+        normalizeOrderForResponse(order);
         res.status(200).json({
             success: true,
             order
@@ -164,32 +178,29 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        const order = await Order.findOne({
+        const eligibleStatuses = [
+            ...storedStatusValues('Pending'),
+            ...storedStatusValues('Awaiting_Approval')
+        ];
+        const order = await Order.findOneAndUpdate({
             _id: id,
-            customerId: req.user._id
+            customerId: req.user._id,
+            status: { $in: eligibleStatuses }
+        }, {
+            $set: { status: 'Cancelled' }
+        }, {
+            new: true,
+            runValidators: true
         });
 
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Order not found or cannot be cancelled'
             });
         }
 
-        const allowedStatuses = [
-            'Pending',
-            'Awaiting_Approval'
-        ];
-
-        if (!allowedStatuses.includes(order.status)) {
-            return res.status(400).json({
-                success: false,
-                message: 'This order cannot be cancelled'
-            });
-        }
-
-        order.status = 'Cancelled';
-        await order.save();
+        normalizeOrderForResponse(order);
 
         res.status(200).json({
             success: true,

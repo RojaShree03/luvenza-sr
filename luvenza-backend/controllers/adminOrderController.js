@@ -1,6 +1,18 @@
 const mongoose = require("mongoose");
 const Order = require("../models/order");
 const User = require("../models/user");
+const {
+    normalizeOrderStatus,
+    storedStatusValues,
+    canTransitionOrderStatus
+} = require("../utils/orderStatus");
+
+const normalizeOrderForResponse = order => {
+    if (order && normalizeOrderStatus(order.status)) {
+        order.status = normalizeOrderStatus(order.status);
+    }
+    return order;
+};
 
 exports.getOrders = async (req, res) => {
     try {
@@ -10,6 +22,8 @@ exports.getOrders = async (req, res) => {
             .populate("assignedDeliveryPartner", "name phone")
             .populate("customizationId")
             .sort({ createdAt: -1 });
+
+        orders.forEach(normalizeOrderForResponse);
 
         res.status(200).json({
             count: orders.length,
@@ -32,6 +46,7 @@ exports.getOrderById = async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
 
+        normalizeOrderForResponse(order);
         res.status(200).json({ order });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -40,32 +55,43 @@ exports.getOrderById = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
     try {
-        const allowedStatuses = [
-            "placed",
-            "confirmed",
-            "tailoring",
-            "ready_for_delivery",
-            "out_for_delivery",
-            "delivered",
-            "cancelled"
-        ];
+        const nextStatus = normalizeOrderStatus(req.body.status);
 
-        const { status } = req.body;
-
-        if (!allowedStatuses.includes(status)) {
+        if (!nextStatus) {
             return res.status(400).json({ message: "Invalid order status" });
         }
 
-        const order = await Order.findByIdAndUpdate(
-            req.params.id,
-            { $set: { status } },
+        // Payment verification is not implemented; only a future server-side payment flow may set Paid.
+        if (nextStatus === "Paid") {
+            return res.status(400).json({
+                message: "Paid status is reserved for server-side payment verification"
+            });
+        }
+
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid order ID" });
+        }
+
+        const existingOrder = await Order.findById(req.params.id);
+        if (!existingOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (!canTransitionOrderStatus(existingOrder.status, nextStatus, "admin")) {
+            return res.status(409).json({ message: "Invalid order status transition" });
+        }
+
+        const order = await Order.findOneAndUpdate(
+            { _id: existingOrder._id, status: existingOrder.status },
+            { $set: { status: nextStatus } },
             { new: true, runValidators: true }
         );
 
         if (!order) {
-            return res.status(404).json({ message: "Order not found" });
+            return res.status(409).json({ message: "Order status changed; reload and retry" });
         }
 
+        normalizeOrderForResponse(order);
         res.status(200).json({
             message: "Order status updated",
             order
@@ -97,18 +123,32 @@ exports.assignTailor = async (req, res) => {
             });
         }
 
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid order ID" });
+        }
+
+        const existingOrder = await Order.findById(req.params.id);
+        if (
+            !existingOrder
+            || !canTransitionOrderStatus(existingOrder.status, "In_Production", "admin")
+        ) {
+            return res.status(404).json({
+                message: "Order not found or not ready for tailor assignment"
+            });
+        }
+
         const order = await Order.findOneAndUpdate(
             {
-                _id: req.params.id,
-                status: { $in: ["placed", "confirmed"] }
+                _id: existingOrder._id,
+                status: { $in: storedStatusValues(existingOrder.status) }
             },
             {
                 $set: {
                     assignedTailor: tailorId,
-                    status: "tailoring"
+                    status: "In_Production"
                 }
             },
-            { new: true }
+            { new: true, runValidators: true }
         );
 
         if (!order) {
@@ -117,6 +157,7 @@ exports.assignTailor = async (req, res) => {
             });
         }
 
+        normalizeOrderForResponse(order);
         res.status(200).json({
             message: "Tailor assigned successfully",
             order
@@ -150,18 +191,33 @@ exports.assignDeliveryPartner = async (req, res) => {
             });
         }
 
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid order ID" });
+        }
+
+        const existingOrder = await Order.findById(req.params.id);
+        if (
+            !existingOrder
+            || !canTransitionOrderStatus(existingOrder.status, "Out_For_Delivery", "admin")
+            || normalizeOrderStatus(existingOrder.status) !== "Ready_For_Dispatch"
+        ) {
+            return res.status(404).json({
+                message: "Order not found or not ready for delivery"
+            });
+        }
+
         const order = await Order.findOneAndUpdate(
             {
-                _id: req.params.id,
-                status: "ready_for_delivery"
+                _id: existingOrder._id,
+                status: { $in: storedStatusValues(existingOrder.status) }
             },
             {
                 $set: {
                     assignedDeliveryPartner: deliveryPartnerId,
-                    status: "out_for_delivery"
+                    status: "Out_For_Delivery"
                 }
             },
-            { new: true }
+            { new: true, runValidators: true }
         );
 
         if (!order) {
@@ -170,6 +226,7 @@ exports.assignDeliveryPartner = async (req, res) => {
             });
         }
 
+        normalizeOrderForResponse(order);
         res.status(200).json({
             message: "Delivery partner assigned successfully",
             order
@@ -181,23 +238,32 @@ exports.assignDeliveryPartner = async (req, res) => {
 
 exports.cancelOrder = async (req, res) => {
     try {
-        const order = await Order.findOneAndUpdate(
-            {
-                _id: req.params.id,
-                status: {
-                    $nin: ["delivered", "cancelled"]
-                }
-            },
-            { $set: { status: "cancelled" } },
-            { new: true }
-        );
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid order ID" });
+        }
 
-        if (!order) {
+        const existingOrder = await Order.findById(req.params.id);
+        if (
+            !existingOrder
+            || ["Delivered", "Cancelled"].includes(normalizeOrderStatus(existingOrder.status))
+            || !canTransitionOrderStatus(existingOrder.status, "Cancelled", "admin")
+        ) {
             return res.status(404).json({
                 message: "Order not found or cannot be cancelled"
             });
         }
 
+        const order = await Order.findOneAndUpdate(
+            { _id: existingOrder._id, status: existingOrder.status },
+            { $set: { status: "Cancelled" } },
+            { new: true, runValidators: true }
+        );
+
+        if (!order) {
+            return res.status(409).json({ message: "Order status changed; reload and retry" });
+        }
+
+        normalizeOrderForResponse(order);
         res.status(200).json({
             message: "Order cancelled successfully",
             order
