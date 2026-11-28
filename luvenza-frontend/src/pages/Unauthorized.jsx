@@ -1,0 +1,2 @@
+import { Link } from "react-router-dom";
+export default function Unauthorized(){return <div className="panel mx-auto mt-20 max-w-lg p-10 text-center"><h1 className="page-title">Access restricted</h1><p className="muted my-4">Your account does not have permission to view this module.</p><Link className="btn-primary" to="/app">Return to dashboard</Link></div>;}

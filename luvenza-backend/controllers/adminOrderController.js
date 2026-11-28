@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 const Order = require("../models/order");
 const User = require("../models/user");
+const paymentRepository = require('../repositories/paymentRepository');
 
 exports.getOrders = async (req, res) => {
     try {
         const orders = await Order.find()
-            .populate("customerId", "username email phone")
-            .populate("assignedTailor", "username phone")
-            .populate("assignedDeliveryPartner", "username phone")
+            .populate("customerId", "name email phone")
+            .populate("assignedTailor", "name phone")
+            .populate("assignedDeliveryPartner", "name phone")
             .populate("customizationId")
             .sort({ createdAt: -1 });
 
@@ -23,9 +24,9 @@ exports.getOrders = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
-            .populate("customerId", "username email phone")
-            .populate("assignedTailor", "username phone")
-            .populate("assignedDeliveryPartner", "username phone")
+            .populate("customerId", "name email phone")
+            .populate("assignedTailor", "name phone")
+            .populate("assignedDeliveryPartner", "name phone")
             .populate("customizationId");
 
         if (!order) {
@@ -56,7 +57,9 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(400).json({ message: "Invalid order status" });
         }
 
-        const order = await Order.findByIdAndUpdate(
+        const order = status === 'cancelled'
+            ? await paymentRepository.cancelIfNoActivePayment(req.params.id)
+            : await Order.findByIdAndUpdate(
             req.params.id,
             { $set: { status } },
             { new: true, runValidators: true }
@@ -181,16 +184,7 @@ exports.assignDeliveryPartner = async (req, res) => {
 
 exports.cancelOrder = async (req, res) => {
     try {
-        const order = await Order.findOneAndUpdate(
-            {
-                _id: req.params.id,
-                status: {
-                    $nin: ["delivered", "cancelled"]
-                }
-            },
-            { $set: { status: "cancelled" } },
-            { new: true }
-        );
+        const order = await paymentRepository.cancelIfNoActivePayment(req.params.id);
 
         if (!order) {
             return res.status(404).json({

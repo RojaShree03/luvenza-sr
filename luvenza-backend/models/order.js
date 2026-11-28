@@ -19,6 +19,24 @@ const orderSchema = new mongoose.Schema({
         ref: "User"
     },
     totalAmount: Number,
+    payment: {
+        status: {
+            type: String,
+            enum: ['not_started', 'pending', 'paid', 'failed'],
+            default: 'not_started'
+        },
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        verifiedAt: Date,
+        webhookEventIds: [String],
+        errorCode: String,
+        errorDescription: String,
+        activeAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+        currency: {
+            type: String,
+            default: 'INR'
+        }
+    },
     status: {
         type: String,
         enum: [
@@ -31,7 +49,30 @@ const orderSchema = new mongoose.Schema({
             "cancelled"
         ],
         default: "placed"
-    }
+    },
+    deliveryDetails: {
+        acceptedAt: Date,
+        pickedUpAt: Date,
+        deliveredAt: Date,
+        rejectionReason: String,
+        deliveryAddress: String,
+        trackingNote: String
+    },
+    activityHistory: [
+        {
+            performedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+            role: String,
+            action: String,
+            description: String,
+            createdAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Orders', orderSchema);

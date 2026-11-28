@@ -1,3 +1,6 @@
+const Order = require('../models/order');
+const Customization = require('../models/customization');
+const Measurement = require('../models/measurement');
 const User = require('../models/user');
 
 // GET - View profile
@@ -76,7 +79,7 @@ const updateProfile = async (req, res) => {
             });
         }
 
-        const allowedFields = ['personalDetails', 'address'];
+        const allowedFields = ['personalDetails', 'address', 'name', 'username', 'phone'];
 
         for (const field of Object.keys(req.body)) {
             if (!allowedFields.includes(field)) {
@@ -85,6 +88,9 @@ const updateProfile = async (req, res) => {
                 });
             }
         }
+
+        if (req.body.name !== undefined || req.body.username !== undefined) user.name = req.body.name ?? req.body.username;
+        if (req.body.phone !== undefined) user.phone = req.body.phone;
 
         if (req.body.personalDetails) {
             user.personalDetails = {
@@ -140,7 +146,21 @@ const deleteProfile = async (req, res) => {
     }
 };
 
+const getDashboardOverview = async (req, res) => {
+    try {
+        const [totalOrders, savedDesigns, measurements] = await Promise.all([
+            Order.countDocuments({ customerId: req.user._id }),
+            Customization.countDocuments({ userId: req.user._id }),
+            Measurement.countDocuments({ userId: req.user._id })
+        ]);
+        res.status(200).json({ totalOrders, savedDesigns, measurements });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch customer dashboard', error: error.message });
+    }
+};
+
 module.exports = {
+    getDashboardOverview,
     getProfile,
     createProfile,
     updateProfile,

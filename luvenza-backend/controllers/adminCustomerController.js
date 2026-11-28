@@ -14,7 +14,7 @@ const getAllCustomers = async (req, res) => {
         const filter = {
             role: "customer",
             $or: [
-                { username: { $regex: search, $options: "i" } },
+                { name: { $regex: search, $options: "i" } },
                 { email: { $regex: search, $options: "i" } },
                 { phone: { $regex: search, $options: "i" } }
             ]

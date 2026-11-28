@@ -66,6 +66,12 @@ const userSchema = new mongoose.Schema({
         portfolio: [String]
     },
 
+    availabilityStatus: {
+        type: String,
+        enum: ["available", "busy", "unavailable"],
+        default: "available"
+    },
+
     deliveryDetails: {
         vehicleType: String,
         vehicleNumber: String,
