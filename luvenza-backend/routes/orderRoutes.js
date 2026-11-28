@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const authorizeRoles = require('../middleware/roleMiddleware');
 const { getMyOrders } = require('../controllers/customerOrderController');

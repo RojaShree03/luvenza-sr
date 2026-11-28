@@ -13,6 +13,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const measurementRoutes = require('./routes/measurementRoutes');
 const customizationRoutes = require('./routes/customizationRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 const adminCustomerRoutes = require("./routes/adminCustomerRoutes");
 const collectionRoutes = require("./routes/collectionRoutes");

@@ -1,22 +1,85 @@
-const mongoose = require('mongoose');
 
-const orderSchema = new mongoose.Schema({
-    customerId: {
+const mongoose = require('mongoose');
+const { ORDER_STATUSES } = require('../utils/orderStatus');
+
+const orderItemSchema = new mongoose.Schema({
+    productId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'Product',
         required: true
     },
+
+    productName: {
+        type: String,
+        required: true
+    },
+
+    quantity: {
+        type: Number,
+        required: true,
+        min: 1
+    },
+
+    selectedSize: {
+        type: String,
+        required: true
+    },
+
+    unitPrice: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+
+    itemTotal: {
+        type: Number,
+        required: true,
+        min: 0
+    }
+}, { _id: false });
+
+const orderSchema = new mongoose.Schema({
+
+    customerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    // Internal idempotency key used to recover interrupted checkout requests.
+    checkoutKey: {
+        type: String,
+        select: false
+    },
+
+    items: {
+        type: [orderItemSchema],
+        required: true,
+        validate: {
+            validator: items => items.length > 0,
+            message: 'An order must contain at least one item'
+        }
+    },
+
     customizationId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Customization"
+        ref: 'Customization'
     },
+
     assignedTailor: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: 'User'
     },
+
     assignedDeliveryPartner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: 'User'
+    },
+
+    totalAmount: {
+        type: Number,
+        required: true,
+        min: 0
     },
     totalAmount: Number,
     payment: {

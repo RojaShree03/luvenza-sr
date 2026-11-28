@@ -3,11 +3,34 @@ const Customization = require('../models/customization');
 const Measurement = require('../models/measurement');
 const User = require('../models/user');
 
+const isPlainObject = value => Boolean(
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+);
+
+const hasUnsafeKeys = value => Object.keys(value).some(
+    key => ['__proto__', 'prototype', 'constructor'].includes(key)
+);
+
+const validateProfilePayload = ({ personalDetails, address }) => {
+    if (!isPlainObject(personalDetails) || !isPlainObject(address)) {
+        return 'Personal details and address must be objects';
+    }
+
+    if (hasUnsafeKeys(personalDetails) || hasUnsafeKeys(address)) {
+        return 'Profile contains an invalid field';
+    }
+
+    return null;
+};
+
 // GET - View profile
 const getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
-            .select('-password');
+            .select('-password -resetPasswordOTP -resetPasswordOTPExpiry -resetPasswordOTPAttempts -resetPasswordOTPBlockedUntil');
 
         if (!user) {
             return res.status(404).json({
@@ -49,6 +72,11 @@ const createProfile = async (req, res) => {
             return res.status(400).json({
                 message: 'Personal details and address are required'
             });
+        }
+
+        const validationError = validateProfilePayload({ personalDetails, address });
+        if (validationError) {
+            return res.status(400).json({ success: false, message: validationError });
         }
 
         user.personalDetails = personalDetails;
@@ -94,14 +122,14 @@ const updateProfile = async (req, res) => {
 
         if (req.body.personalDetails) {
             user.personalDetails = {
-                ...user.personalDetails.toObject(),
+                ...(user.personalDetails?.toObject?.() || user.personalDetails || {}),
                 ...req.body.personalDetails
             };
         }
 
-        if (req.body.address) {
+        if (req.body.address !== undefined) {
             user.address = {
-                ...user.address.toObject(),
+                ...(user.address?.toObject?.() || user.address || {}),
                 ...req.body.address
             };
         }

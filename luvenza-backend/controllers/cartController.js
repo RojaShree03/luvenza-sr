@@ -1,4 +1,20 @@
 const Cart = require('../models/cart');
+const { recoverExpiredCheckoutForUser } = require('./orderController');
+
+const respondCartMutationError = (res, error) => {
+    if (error.name === 'VersionError' || error.code === 11000) {
+        return res.status(409).json({
+            success: false,
+            message: 'Cart changed or checkout is in progress. Please try again.'
+        });
+    }
+    return res.status(400).json({ message: error.message });
+};
+
+const checkoutInProgress = (res) => res.status(409).json({
+    success: false,
+    message: 'Checkout is in progress. Please retry this cart change later.'
+});
 
 // GET - View cart
 const getCart = async (req, res) => {
@@ -32,7 +48,13 @@ const addToCart = async (req, res) => {
 
         let cart = await Cart.findOne({
             userId: req.user._id
-        });
+        }).select('+checkout');
+
+        if (cart?.checkout?.key) {
+            const recovered = await recoverExpiredCheckoutForUser(req.user._id);
+            if (!recovered) return checkoutInProgress(res);
+            cart = await Cart.findOne({ userId: req.user._id }).select('+checkout');
+        }
 
         if (!cart) {
             cart = new Cart({
@@ -65,7 +87,7 @@ const addToCart = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        respondCartMutationError(res, error);
     }
 };
 
@@ -75,14 +97,21 @@ const updateCartItem = async (req, res) => {
     try {
         const { quantity, selectedSize } = req.body;
 
-        const cart = await Cart.findOne({
+        let cart = await Cart.findOne({
             userId: req.user._id
-        });
+        }).select('+checkout');
 
         if (!cart) {
             return res.status(404).json({
                 message: 'Cart not found'
             });
+        }
+
+        if (cart.checkout?.key) {
+            const recovered = await recoverExpiredCheckoutForUser(req.user._id);
+            if (!recovered) return checkoutInProgress(res);
+            cart = await Cart.findOne({ userId: req.user._id }).select('+checkout');
+            if (!cart) return res.status(404).json({ message: 'Cart not found' });
         }
 
         const item = cart.items.id(req.params.itemId);
@@ -115,7 +144,7 @@ const updateCartItem = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        respondCartMutationError(res, error);
     }
 };
 
@@ -123,14 +152,21 @@ const updateCartItem = async (req, res) => {
 // DELETE - Remove cart item
 const removeCartItem = async (req, res) => {
     try {
-        const cart = await Cart.findOne({
+        let cart = await Cart.findOne({
             userId: req.user._id
-        });
+        }).select('+checkout');
 
         if (!cart) {
             return res.status(404).json({
                 message: 'Cart not found'
             });
+        }
+
+        if (cart.checkout?.key) {
+            const recovered = await recoverExpiredCheckoutForUser(req.user._id);
+            if (!recovered) return checkoutInProgress(res);
+            cart = await Cart.findOne({ userId: req.user._id }).select('+checkout');
+            if (!cart) return res.status(404).json({ message: 'Cart not found' });
         }
 
         const item = cart.items.id(req.params.itemId);
@@ -150,7 +186,7 @@ const removeCartItem = async (req, res) => {
         });
 
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        respondCartMutationError(res, error);
     }
 };
 

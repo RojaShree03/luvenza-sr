@@ -16,10 +16,10 @@ exports.getCustomizationRequests = async (req, res) => {
                 ]
             }
         })
-            .populate("userId", "username email phone")
+            .populate("userId", "name email phone")
             .populate("productId")
             .populate("measurementId")
-            .populate("assignedTailor", "username phone")
+            .populate("assignedTailor", "name phone")
             .sort({ createdAt: -1 });
 
         res.status(200).json({

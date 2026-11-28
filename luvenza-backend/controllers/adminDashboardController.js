@@ -2,6 +2,19 @@ const User = require("../models/user");
 const Product = require("../models/product");
 const Order = require("../models/order");
 const Customization = require("../models/customization");
+const {
+    ORDER_STATUSES,
+    normalizeOrderStatus,
+    storedStatusValues
+} = require("../utils/orderStatus");
+
+const ACTIVE_ORDER_STATUSES = ORDER_STATUSES.filter(
+    status => !["Delivered", "Cancelled"].includes(status)
+);
+const activeOrderStatusValues = [...new Set(
+    ACTIVE_ORDER_STATUSES.flatMap(storedStatusValues)
+)];
+const cancelledOrderStatusValues = storedStatusValues("Cancelled");
 
 // GET /api/admin/dashboard/overview
 exports.getOverview = async (req, res) => {
@@ -24,20 +37,12 @@ exports.getOverview = async (req, res) => {
                 status: "pending_review"
             }),
             Order.countDocuments({
-                status: {
-                    $in: [
-                        "placed",
-                        "confirmed",
-                        "tailoring",
-                        "ready_for_delivery",
-                        "out_for_delivery"
-                    ]
-                }
+                status: { $in: activeOrderStatusValues }
             })
         ]);
 
         const salesResult = await Order.aggregate([
-            { $match: { status: { $ne: "cancelled" } } },
+            { $match: { status: { $nin: cancelledOrderStatusValues } } },
             {
                 $group: {
                     _id: null,
@@ -70,7 +75,7 @@ exports.getSalesReport = async (req, res) => {
         const sales = await Order.aggregate([
             {
                 $match: {
-                    status: { $ne: "cancelled" }
+                    status: { $nin: cancelledOrderStatusValues }
                 }
             },
             {
@@ -96,7 +101,7 @@ exports.getSalesReport = async (req, res) => {
 // GET /api/admin/dashboard/orders
 exports.getOrderReport = async (req, res) => {
     try {
-        const orders = await Order.aggregate([
+        const rawOrders = await Order.aggregate([
             {
                 $group: {
                     _id: "$status",
@@ -104,6 +109,13 @@ exports.getOrderReport = async (req, res) => {
                 }
             }
         ]);
+
+        const orderCounts = new Map();
+        rawOrders.forEach(({ _id, count }) => {
+            const status = normalizeOrderStatus(_id) || _id || "Unknown";
+            orderCounts.set(status, (orderCounts.get(status) || 0) + count);
+        });
+        const orders = [...orderCounts].map(([_id, count]) => ({ _id, count }));
 
         res.status(200).json({ orders });
     } catch (error) {
