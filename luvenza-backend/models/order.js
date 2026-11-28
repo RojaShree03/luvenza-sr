@@ -81,23 +81,61 @@ const orderSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
-
+    totalAmount: Number,
+    payment: {
+        status: {
+            type: String,
+            enum: ['not_started', 'pending', 'paid', 'failed'],
+            default: 'not_started'
+        },
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        verifiedAt: Date,
+        webhookEventIds: [String],
+        errorCode: String,
+        errorDescription: String,
+        activeAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+        currency: {
+            type: String,
+            default: 'INR'
+        }
+    },
     status: {
         type: String,
-        enum: ORDER_STATUSES,
-        default: 'Pending'
-    }
+        enum: [
+            "placed",
+            "confirmed",
+            "tailoring",
+            "ready_for_delivery",
+            "out_for_delivery",
+            "delivered",
+            "cancelled"
+        ],
+        default: "placed"
+    },
+    deliveryDetails: {
+        acceptedAt: Date,
+        pickedUpAt: Date,
+        deliveredAt: Date,
+        rejectionReason: String,
+        deliveryAddress: String,
+        trackingNote: String
+    },
+    activityHistory: [
+        {
+            performedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+            role: String,
+            action: String,
+            description: String,
+            createdAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ]
+}, { timestamps: true });
 
-}, { timestamps: true, autoIndex: false });
-
-orderSchema.index(
-    { customerId: 1, checkoutKey: 1 },
-    {
-        unique: true,
-        partialFilterExpression: { checkoutKey: { $type: 'string' } }
-    }
-);
-
-const Order = mongoose.model('Order', orderSchema);
-
-module.exports = Order;
+module.exports = mongoose.model('Orders', orderSchema);

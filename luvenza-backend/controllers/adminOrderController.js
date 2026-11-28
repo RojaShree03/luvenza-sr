@@ -1,18 +1,7 @@
 const mongoose = require("mongoose");
 const Order = require("../models/order");
 const User = require("../models/user");
-const {
-    normalizeOrderStatus,
-    storedStatusValues,
-    canTransitionOrderStatus
-} = require("../utils/orderStatus");
-
-const normalizeOrderForResponse = order => {
-    if (order && normalizeOrderStatus(order.status)) {
-        order.status = normalizeOrderStatus(order.status);
-    }
-    return order;
-};
+const paymentRepository = require('../repositories/paymentRepository');
 
 exports.getOrders = async (req, res) => {
     try {
@@ -61,29 +50,11 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(400).json({ message: "Invalid order status" });
         }
 
-        // Payment verification is not implemented; only a future server-side payment flow may set Paid.
-        if (nextStatus === "Paid") {
-            return res.status(400).json({
-                message: "Paid status is reserved for server-side payment verification"
-            });
-        }
-
-        if (!mongoose.isValidObjectId(req.params.id)) {
-            return res.status(400).json({ message: "Invalid order ID" });
-        }
-
-        const existingOrder = await Order.findById(req.params.id);
-        if (!existingOrder) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        if (!canTransitionOrderStatus(existingOrder.status, nextStatus, "admin")) {
-            return res.status(409).json({ message: "Invalid order status transition" });
-        }
-
-        const order = await Order.findOneAndUpdate(
-            { _id: existingOrder._id, status: existingOrder.status },
-            { $set: { status: nextStatus } },
+        const order = status === 'cancelled'
+            ? await paymentRepository.cancelIfNoActivePayment(req.params.id)
+            : await Order.findByIdAndUpdate(
+            req.params.id,
+            { $set: { status } },
             { new: true, runValidators: true }
         );
 
@@ -238,9 +209,7 @@ exports.assignDeliveryPartner = async (req, res) => {
 
 exports.cancelOrder = async (req, res) => {
     try {
-        if (!mongoose.isValidObjectId(req.params.id)) {
-            return res.status(400).json({ message: "Invalid order ID" });
-        }
+        const order = await paymentRepository.cancelIfNoActivePayment(req.params.id);
 
         const existingOrder = await Order.findById(req.params.id);
         if (

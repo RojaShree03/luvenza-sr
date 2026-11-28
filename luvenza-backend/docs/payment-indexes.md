@@ -1,126 +1,16 @@
-# Payment index deployment requirements
+# Payment indexes and startup readiness
 
-Payment and webhook models use `autoIndex: false`. The application does not
-create, drop, or modify these indexes. `config/paymentIndexReadiness.js` checks
-the live definitions during startup and the server exits before listening if a
-required index is absent or does not match.
+`models/payment.js` is the source of truth for these indexes. `config/paymentIndexReadiness.js` creates the declared indexes during startup and then compares MongoDB's actual index metadata to the required key pattern, uniqueness, sparse option, and partial filter. The server does not begin listening if index creation or verification fails.
 
-The Mongoose collection names are `payments` and `paymentwebhookevents`. Before
-deploying this version, an operator must check whether each collection exists,
-check for duplicate values that conflict with unique indexes, and provision the
-following definitions through the approved database change process. Create a
-collection only if it does not already exist. These commands are documentation
-only; they were not run as part of Stage 5.2.
+| Name | Key | Options | Purpose |
+| --- | --- | --- | --- |
+| `uniq_active_payment_per_order` | `{ activeOrderKey: 1 }` | `unique: true`, `partialFilterExpression: { activeOrderKey: { $type: "string" } }` | Allows at most one active attempt per Order; terminal attempts unset `activeOrderKey`. |
+| `uniq_payment_attempt_number` | `{ orderId: 1, attemptNumber: 1 }` | `unique: true` | Prevents duplicate allocated attempt numbers for an Order. |
+| `uniq_payment_idempotency_key` | `{ orderId: 1, idempotencyKey: 1 }` | `unique: true` | Makes replay and key-conflict checks durable across backend instances. |
+| `uniq_razorpay_order_id` | `{ razorpayOrderId: 1 }` | `unique: true`, `sparse: true` | Prevents one provider Order from being attached to multiple local attempts. |
 
-```javascript
-db.payments.createIndex(
-  { orderId: 1, attemptNumber: 1 },
-  { unique: true }
-)
+The active index intentionally uses a string-typed partial filter. `activeOrderKey` is stored as the string form of the local Order ObjectId while the reservation is live; it is unset when that attempt becomes paid, cancelled, or definitively failed. `initiating`, `ambiguous`, and `created` attempts retain the reservation. A lease can be reclaimed only for the same idempotency key after expiry; recovery queries Razorpay by the stable receipt before attempting another create.
 
-db.payments.createIndex(
-  { customerId: 1, orderId: 1, idempotencyKey: 1 },
-  { unique: true }
-)
+Startup index creation will fail if existing data violates a unique index. Resolve duplicate records before deploying this version. The readiness matcher checks the exact index name, ordered key document, `unique`, `sparse`, and partial filter. It intentionally ignores server-generated metadata such as `v` and `ns`.
 
-db.payments.createIndex(
-  { razorpayOrderId: 1 },
-  { unique: true, partialFilterExpression: { razorpayOrderId: { $type: "string" } } }
-)
-
-db.payments.createIndex(
-  { razorpayPaymentId: 1 },
-  { unique: true, partialFilterExpression: { razorpayPaymentId: { $type: "string" } } }
-)
-
-db.payments.createIndex(
-  { customerId: 1, orderId: 1, attemptNumber: -1 }
-)
-
-db.paymentwebhookevents.createIndex(
-  { eventId: 1 },
-  { unique: true }
-)
-
-db.paymentwebhookevents.createIndex(
-  { status: 1, receivedAt: 1 }
-)
-
-db.paymentwebhookevents.createIndex(
-  { status: 1, processingLeaseExpiresAt: 1 }
-)
-```
-
-The existing Stage 4 checkout index remains a separate required index and is
-still checked by `config/checkoutIndexReadiness.js`.
-
-Payment attempt numbers may contain gaps. A future payment service must
-allocate the next attempt number safely under concurrent requests, using the
-unique `{ orderId, attemptNumber }` index as the final duplicate guard and
-retrying allocation after a duplicate-key conflict. The model does not reserve
-or allocate attempt numbers itself.
-
-Captured payment and webhook event deletion is blocked through supported
-Mongoose model and document deletion methods. This is application-level
-protection only: native MongoDB collection operations and direct database
-access bypass Mongoose middleware. Production database credentials and
-operator access must therefore remain restricted, and operational procedures
-must not delete these audit records.
-
-Webhook event identity, payload, signature-verification time, and received time
-are immutable through both hydrated document saves and query updates. Processing
-status, lease, retry, and processing timestamp changes remain limited to the
-approved atomic repository operations.
-
-Production payment writes are centralized in the payment repositories.
-`paymentRepository.js` creates attempts idempotently and changes payment state
-through compare-and-set. `paymentWebhookEventRepository.js` creates verified
-pending events idempotently, claims/reclaims and fails/retries them. The
-general event repository does not export completion. Completion is available
-to `utils/paymentWebhookProcessing.js` through
-`paymentWebhookEventCompletion.js`, after the business-effects handler
-resolves. External side effects must be independently idempotent because a
-lease cannot make an external effect and MongoDB completion atomic.
-
-`config/db.js` imports no payment models. It calls only
-`repositories/paymentIndexReadinessRepository.js`, whose public interface
-exposes the index check and not the collections. Startup order remains Stage 4
-checkout index verification, payment index verification, checkout recovery,
-then server listening. `autoIndex` is disabled; readiness checks inspect
-indexes but do not create or change them.
-
-Webhook claims use one atomic `findOneAndUpdate` with the event/status/expiry
-filter. MongoDB `$$NOW` is used both to compare an expired lease and to compute
-the new lease expiry in an update pipeline; token, status and version checks
-remain in place. Update pipelines and aggregation variable `NOW` require
-MongoDB 4.2 or newer. This project does not pin or report the deployed server
-version, so operators must verify the target cluster meets that minimum before
-deployment. MongoDB documents update pipelines [here](https://www.mongodb.com/docs/manual/tutorial/update-documents-with-aggregation-pipeline/)
-and the deployment-wide `NOW` variable [here](https://www.mongodb.com/docs/manual/reference/aggregation-variables/).
-
-The source analyzer tokenizes production `.js`, `.cjs` and `.mjs` files and
-checks direct model imports/re-exports, saved and bracketed model-registry
-access, common literal native collection writes including stored handles,
-middleware-skip options, test-seam references, completion access, and model
-write methods outside the per-repository allowlist. Readiness modules and
-startup files are treated as read-only. This is a static guard, not complete
-JavaScript AST or runtime enforcement. Computed module paths, dynamically
-constructed names/options, indirect driver handles, generated code, and direct
-privileged database access can evade source inspection. Keep database roles
-restricted and review new database access paths.
-
-The repository's deterministic model factories are test-only. Production
-processing tokens use Node's cryptographic `randomUUID()` and lease duration
-and time are not caller-controlled. Payment attempt numbers may contain gaps;
-Stage 5.3 must allocate them safely under concurrency and retry duplicate
-`{ orderId, attemptNumber }` conflicts while preserving the stable
-customer/order idempotency key.
-
-Before production, use a disposable MongoDB deployment to test concurrent
-payment creation and compare-and-set updates, webhook duplicate inserts,
-concurrent claims and expired-lease reclamation, stale completion/failure,
-server-time pipeline execution, actual unique-index enforcement, and startup
-failure on missing/mismatched indexes. Stage 5.3 must load orders using the
-authenticated customer identity, verify ownership and `Awaiting_Payment`, and
-derive amount/currency from the saved order. Controllers, routes, Razorpay
-calls, and payment verification remain outside Stage 5.2.
+The partial unique index is a database safeguard, not a substitute for application reservation logic. Reservation creation handles duplicate-key races by reading the winning attempt and returning a conflict/replay response.

@@ -31,12 +31,12 @@ exports.getTailorById = async (req, res) => {
 
 exports.updateTailor = async (req, res) => {
     try {
-        const allowed = ["name", "phone", "professionalDetails"];
+        const allowed = ["name", "username", "phone", "professionalDetails"];
         const updates = {};
 
         allowed.forEach((field) => {
             if (req.body[field] !== undefined) {
-                updates[field] = req.body[field];
+                updates[field === "username" ? "name" : field] = req.body[field];
             }
         });
 

@@ -21,17 +21,24 @@ const designComponentRoutes = require("./routes/designComponentRoutes");
 const templateRoutes = require("./routes/templateRoutes");
 const designerRequestRoutes = require("./routes/designerRequestRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const deliveryRoutes = require("./routes/deliveryRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const tailorRoutes = require("./routes/tailorRoutes");
+const paymentWebhookRoutes = require("./routes/paymentWebhookRoutes");
+const { loadRuntimeConfig } = require('./config/runtimeConfig');
+const { ensurePaymentIndexes } = require('./config/paymentIndexReadiness');
 
 dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 5000
-
 app.use(cors({
     origin: "http://localhost:5173",
     credentials: true
 }));
+
+app.use("/api/payments/webhook", paymentWebhookRoutes);
 
 app.use(express.json());
 app.use(helmet());
@@ -51,7 +58,10 @@ app.use("/api/design-components", designComponentRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/designer/requests", designerRequestRoutes);
 app.use("/api/admin", adminRoutes);
-app.use('/api/orders', orderRoutes);
+app.use("/api/delivery", deliveryRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/tailor", tailorRoutes);
 
 app.get("/", (req, res) => {
     res.status(200).json({
@@ -62,10 +72,12 @@ app.get("/", (req, res) => {
 
 const startServer = async()=>{
     try{
+        const runtimeConfig = loadRuntimeConfig();
         await connectDB();
+        await ensurePaymentIndexes();
 
-        app.listen(PORT,()=>{
-            console.log(`Server is running in the port: ${PORT}`);
+        app.listen(runtimeConfig.port,()=>{
+            console.log(`Server is running in the port: ${runtimeConfig.port}`);
             
         })
     }catch(error){

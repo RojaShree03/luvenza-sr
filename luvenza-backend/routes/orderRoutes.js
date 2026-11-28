@@ -1,19 +1,9 @@
 const express = require('express');
-const router = express.Router();
-
 const authMiddleware = require('../middleware/authMiddleware');
 const authorizeRoles = require('../middleware/roleMiddleware');
+const { getMyOrders } = require('../controllers/customerOrderController');
 
-const {
-    placeOrder,
-    getMyOrders,
-    getOrderById,
-    cancelOrder
-} = require('../controllers/orderController');
-
-router.post('/', authMiddleware, authorizeRoles('customer'), placeOrder);
-router.get('/my-orders', authMiddleware, getMyOrders);
-router.get('/:id', authMiddleware, getOrderById);
-router.put('/:id/cancel', authMiddleware, cancelOrder);
+const router = express.Router();
+router.get('/', authMiddleware, authorizeRoles('customer'), getMyOrders);
 
 module.exports = router;
