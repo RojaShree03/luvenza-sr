@@ -13,8 +13,6 @@ const {
 const {
     registerValidator,
     loginValidator,
-    forgotPasswordValidator,
-    resetPasswordValidator,
     validateRequest
 } = require('../validators/authValidators');
 const authMiddleware = require('../middleware/authMiddleware');
@@ -26,6 +24,15 @@ router.post(
     validateRequest,
     register
 );
+
+// Forgot password
+router.post(
+    '/forgot-password',
+    forgotPassword
+);
+
+// reset password
+router.post('/reset-password', resetPassword);
 
 // post/api/auth/login
 router.post(
